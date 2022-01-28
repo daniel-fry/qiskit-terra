@@ -41,7 +41,7 @@ class Initialize(Instruction, Operation):
     which is not unitary.
     """
 
-    def __init__(self, params, num_qubits=None):
+    def __init__(self, params, num_qubits=None, normalize=False):
         """Create new initialize composite.
 
         params (str, list, int or Statevector):
@@ -59,6 +59,9 @@ class Initialize(Instruction, Operation):
             number of qubits in the `initialize` call. Example: `initialize` covers 5 qubits
             and params is 3. This allows qubits 0 and 1 to be initialized to `|1>` and the
             remaining 3 qubits to be initialized to `|0>`.
+        normalize (Bool): Function to normalize a params array of real or complex weights.
+                Example list: [1,2,3,4]. Example ndarray: np.array([1+4.j, 3-0.j]).
+            * Bool: Pass True to normalize vector.
         """
         # pylint: disable=cyclic-import
         from qiskit.quantum_info import Statevector
@@ -88,6 +91,10 @@ class Initialize(Instruction, Operation):
             # Check if param is a power of 2
             if num_qubits == 0 or not num_qubits.is_integer():
                 raise QiskitError("Desired statevector length not a positive power of 2.")
+
+                # Check if normalize=True then normalizes input array
+            if normalize is True:
+                params = self._normalize(params)
 
             # Check if probabilities (amplitudes squared) sum to 1
             if not math.isclose(sum(np.absolute(params) ** 2), 1.0, abs_tol=_EPS):
@@ -174,6 +181,13 @@ class Initialize(Instruction, Operation):
         initialize_circuit.append(initialize_instr, q[:])
 
         return initialize_circuit
+
+    def _normalize(self, state_array):
+        """Normalizes input list or ndarray of real or complex nums.
+        Returns ndarray."""
+        norm_factor = np.linalg.norm(state_array, 2) #l2 norm
+        normalized_state_array = np.array(state_array)/norm_factor
+        return normalized_state_array
 
     def gates_to_uncompute(self):
         """Call to create a circuit with gates that take the desired vector to zero.
@@ -366,7 +380,7 @@ class Initialize(Instruction, Operation):
             raise CircuitError(f"invalid param type {type(parameter)} for instruction  {self.name}")
 
 
-def initialize(self, params, qubits=None):
+def initialize(self, params, qubits=None, normalize=False):
     r"""Initialize qubits in a specific state.
 
     Qubit initialization is done by first resetting the qubits to :math:`|0\rangle`
@@ -387,7 +401,9 @@ def initialize(self, params, qubits=None):
         qubits (QuantumRegister or int):
             * QuantumRegister: A list of qubits to be initialized [Default: None].
             * int: Index of qubit to initialized [Default: None].
-
+        normalize (Bool): Function to normalize a params array of real or complex weights.
+                Example list: [1,2,3,4]. Example ndarray: np.array([1+4.j, 3-0.j]).
+            * Bool: Pass True to normalize vector.
     Returns:
         qiskit.circuit.Instruction: a handle to the instruction that was just initialized
 
@@ -456,7 +472,7 @@ def initialize(self, params, qubits=None):
         qubits = self._bit_argument_conversion(qubits, self.qubits)
 
     num_qubits = None if not isinstance(params, int) else len(qubits)
-    return self.append(Initialize(params, num_qubits), qubits)
+    return self.append(Initialize(params, num_qubits, normalize), qubits)
 
 
 QuantumCircuit.initialize = initialize
